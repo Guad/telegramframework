@@ -20,17 +20,17 @@ namespace CoreDumpedTelegramBot.Features
             var replyMarkup = new InlineKeyboardMarkup(new InlineKeyboardButton[]
             {
                 new InlineKeyboardCallbackButton("OK",
-                    Program.CallbackHandler.AddCallback(q =>
+                    Program.CallbackHandler.AddCallback(async q =>
                     {
-                        Program.Client.AnswerCallbackQueryAsync(q.Id, "You clicked on OK", false);
-                        Program.Client.EditMessageReplyMarkupAsync(q.Message.Chat, q.Message.MessageId, null);
+                        await Program.Client.AnswerCallbackQueryAsync(q.Id, "You clicked on OK", false);
+                        await Program.Client.EditMessageReplyMarkupAsync(q.Message.Chat, q.Message.MessageId, null);
                         return false;
                     })),
                 new InlineKeyboardCallbackButton("Cancel",
-                    Program.CallbackHandler.AddCallback(q =>
+                    Program.CallbackHandler.AddCallback(async q =>
                     {
-                        Program.Client.AnswerCallbackQueryAsync(q.Id, "You clicked on Cancel", false);
-                        Program.Client.EditMessageReplyMarkupAsync(q.Message.Chat, q.Message.MessageId, null);
+                        await Program.Client.AnswerCallbackQueryAsync(q.Id, "You clicked on Cancel", false);
+                        await Program.Client.EditMessageReplyMarkupAsync(q.Message.Chat, q.Message.MessageId, null);
                         return false;
                     })),
             });

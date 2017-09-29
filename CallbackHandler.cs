@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Telegram.Bot.Types;
 
 namespace CoreDumpedTelegramBot
@@ -9,7 +10,7 @@ namespace CoreDumpedTelegramBot
     {
         class CallbackSettings
         {
-            public Func<CallbackQuery, bool> Method;
+            public Func<CallbackQuery, Task<bool>> Method;
             public bool SingleUse;
             public DateTime AttachTime;
             public DateTime? LastInvoke;
@@ -17,7 +18,7 @@ namespace CoreDumpedTelegramBot
 
         private Dictionary<string, CallbackSettings> _callbacks = new Dictionary<string, CallbackSettings>();
 
-        public string AddCallback(Func<CallbackQuery, bool> func)
+        public string AddCallback(Func<CallbackQuery, Task<bool>> func)
         {
             string id = Guid.NewGuid().ToString();
 
@@ -37,7 +38,7 @@ namespace CoreDumpedTelegramBot
             return id;
         }
 
-        public string AddSingleCallback(Func<CallbackQuery, bool> func)
+        public string AddSingleCallback(Func<CallbackQuery, Task<bool>> func)
         {
             string id = Guid.NewGuid().ToString();
 
@@ -63,7 +64,18 @@ namespace CoreDumpedTelegramBot
                 _callbacks.Remove(id);
         }
 
-        public void Handle(CallbackQuery query)
+        public void RemoveCallbacks(IEnumerable<string> callbacks)
+        {
+            lock (_callbacks)
+            {
+                foreach (string callback in callbacks)
+                {
+                    _callbacks.Remove(callback);
+                }
+            }
+        }
+
+        public async void Handle(CallbackQuery query)
         {
             CallbackSettings callback = null;
             lock (_callbacks)
@@ -80,7 +92,7 @@ namespace CoreDumpedTelegramBot
             {
                 try
                 {
-                    bool result = callback.Method(query);
+                    bool result = await callback.Method(query);
                     if (result && !callback.SingleUse)
                         lock (_callbacks)
                             _callbacks.Remove(query.Data);

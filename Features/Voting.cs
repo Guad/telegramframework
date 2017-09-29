@@ -109,17 +109,17 @@ namespace CoreDumpedTelegramBot.Features
             {
                 var i1 = i;
                 buttens.Add(new InlineKeyboardCallbackButton(options[i] + " [0]",
-                    callbacks[i] = Program.CallbackHandler.AddCallback(q =>
+                    callbacks[i] = Program.CallbackHandler.AddCallback(async q =>
                     {
                         if (voters.Contains(q.From.Id))
                         {
-                            Program.Client.AnswerCallbackQueryAsync(q.Id, "You have already voted!", true);
+                            await Program.Client.AnswerCallbackQueryAsync(q.Id, "You have already voted!", true);
                         }
                         else
                         {
                             votes[i1]++;
                             voters.Add(q.From.Id);
-                            Program.Client.AnswerCallbackQueryAsync(q.Id, "Vote successful!", false);
+                            await Program.Client.AnswerCallbackQueryAsync(q.Id, "Vote successful!", false);
                             UpdateVotingMessage();
                         }
 
