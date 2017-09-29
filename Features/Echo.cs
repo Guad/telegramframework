@@ -10,7 +10,7 @@ namespace CoreDumpedTelegramBot.Features
     {
         public void Hook(TelegramBotClient bot){}
 
-        [Command("echo", GreedyArg = true)]
+        [Command("echo", GreedyArg = true, Description = "Repite despues de mi")]
         public async void BotOnOnMessage(Message msg, string text)
         {
             Program.ConsoleLog(string.Format("Received message: {0} from user {1}", text, msg.From.Id));

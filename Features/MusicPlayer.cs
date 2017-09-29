@@ -25,7 +25,7 @@ namespace CoreDumpedTelegramBot.Features
         public void Stop(){}
 
 #if IS_PLEER_BACK_UP
-        [Command(GreedyArg = true)]
+        [Command(GreedyArg = true, Description = "Buscar una cancion")]
 #endif
         public async void song(Message msg, string searchQuery)
         {

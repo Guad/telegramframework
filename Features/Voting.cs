@@ -42,7 +42,7 @@ namespace CoreDumpedTelegramBot.Features
             return admins.Any(a => a.User.Id == user);
         }
         
-        [Command]
+        [Command(Description = "Crear un voto nuevo")]
         public async void newvote(Message msg)
         {
             if (!await canDoVotes(msg.Chat, msg.From.Id))
@@ -65,7 +65,7 @@ namespace CoreDumpedTelegramBot.Features
             isSettingupChat = true;
         }
 
-        [Command(GreedyArg = true)]
+        [Command(GreedyArg = true, Description = "Añadir una respuesta")]
         public async void addq(Message msg, string text)
         {
             if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat)
@@ -75,7 +75,7 @@ namespace CoreDumpedTelegramBot.Features
             await Program.Client.SendTextMessageAsync(msg.Chat, "Añadido como opcion " + (options.Count - 1) + ". Quitar preguntas con /remq");
         }
 
-        [Command(GreedyArg = true)]
+        [Command(GreedyArg = true, Description = "Poner la pregunta")]
         public async void setq(Message msg, string question)
         {
             if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat)
@@ -85,7 +85,7 @@ namespace CoreDumpedTelegramBot.Features
             votingQuestion = question;
         }
 
-        [Command]
+        [Command(Description = "Quitar una respuesta")]
         public async void remq(Message msg, int index)
         {
             if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat || index < 0 || index >= options.Count)
@@ -95,7 +95,7 @@ namespace CoreDumpedTelegramBot.Features
             await Program.Client.SendTextMessageAsync(msg.Chat, "Quitada opcion #" + index + "");
         }
 
-        [Command]
+        [Command(Description = "Iniciar el voto")]
         public async void startvote(Message msg)
         {
             if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat)

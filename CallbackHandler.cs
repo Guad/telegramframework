@@ -18,6 +18,22 @@ namespace CoreDumpedTelegramBot
 
         private Dictionary<string, CallbackSettings> _callbacks = new Dictionary<string, CallbackSettings>();
 
+        public void AddCallback(string id, Func<CallbackQuery, Task<bool>> func)
+        {
+            CallbackSettings setts = new CallbackSettings();
+
+            setts.Method = func;
+            setts.SingleUse = false;
+            setts.AttachTime = DateTime.UtcNow;
+
+            lock (_callbacks)
+            {
+                if (!_callbacks.ContainsKey(id))
+                    _callbacks.Add(id, setts);
+                else _callbacks[id] = setts;
+            }
+        }
+
         public string AddCallback(Func<CallbackQuery, Task<bool>> func)
         {
             string id = Guid.NewGuid().ToString();
