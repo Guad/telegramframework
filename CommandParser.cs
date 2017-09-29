@@ -18,21 +18,21 @@ namespace CoreDumpedTelegramBot
         public ParameterInfo[] Parameters;
         public string Description;
 
-        private string GetHelpText(string ourcmd)
+        private string GetHelpText()
         {
             string helpText;
 
             if (Parameters.Length > 1)
             {
                 int paramCounter = 0;
-                helpText = "/" + ourcmd + " [" +
+                helpText = " [" +
                            Parameters.Skip(1)
                                .Select(param => param.IsOptional ? param.Name + "?" : param.Name)
                                .Aggregate((prev, next) => prev + (paramCounter++ == 0 ? "]" : "") + " [" + next + "]") +
                            (Parameters.Length == 2 ? "]" : "");
             }
             else
-                helpText = "/" + ourcmd;
+                helpText = "";
 
             return helpText;
         }
@@ -47,11 +47,20 @@ namespace CoreDumpedTelegramBot
             string[] args = cmdraw.Split();
             string ourcmd = args[0].TrimStart('/').ToLower();
 
+            if (ourcmd.Contains("@"))
+            {
+                string[] at = ourcmd.Split('@');
+                ourcmd = at[0];
+
+                if (at.Length == 0 || at[1] != Program.BotPersona.Username.ToLower())
+                    return false;
+            }
+
             if (ourcmd != Command.ToLower() &&
                 (Aliases == null || Aliases.All(a => a.ToLower() != ourcmd)))
                 return false;
 
-            string helpText = "USAGE: " + GetHelpText(ourcmd);
+            string helpText = "USAGE: /" + ourcmd + GetHelpText();
 
             int optionalArguments = Parameters.Skip(1).Count(p => p.IsOptional);
 
@@ -105,10 +114,17 @@ namespace CoreDumpedTelegramBot
 
         public override string ToString()
         {
-            return string.Format("{0} {1}{2}",
-                GetHelpText(Command),
+            return string.Format("/{0}{1} {2}{3}",
+                Command,
+                GetHelpText(),
                 Description == null ? "" : "- " + Description,
                 Aliases.Length > 0 ? "(Aliases: " + string.Join(", ", Aliases) + ")" : "");
+        }
+
+        public string ToSyntaxString()
+        {
+            string helpText = GetHelpText();
+            return string.Format("{0} -{1}{2}", Command, string.IsNullOrEmpty(helpText) ? " " : helpText + ": ", Description);
         }
     }
 }

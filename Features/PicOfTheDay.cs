@@ -11,7 +11,7 @@ namespace CoreDumpedTelegramBot.Features
     {
         private const string BingApiUri = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US";
 
-        [Command("potd")]
+        [Command("potd", Description = "La imagen del dia por parte de Bing")]
         public async void BingImageCommand(Message msg)
         {
             using (var wc = new System.Net.Http.HttpClient())

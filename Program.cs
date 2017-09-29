@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Args;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
 namespace CoreDumpedTelegramBot
@@ -21,6 +22,8 @@ namespace CoreDumpedTelegramBot
 
         public static CallbackHandler CallbackHandler;
         public static TelegramBotClient Client;
+        public static User BotPersona;
+        public static bool Verbose;
 
         public static void Main(string[] args)
         {
@@ -29,11 +32,29 @@ namespace CoreDumpedTelegramBot
 
         private static async Task MainAsync(string[] args)
         {
-            Console.WriteLine("Starting...");
+            bool justPrintCommands = false;
+
+            /* PARSE ARGUMENTS */
+            for (int i = 0; i < args.Length; i++)
+            {
+                switch (args[i])
+                {
+                    case "-pcmds":
+                    case "--printCommands":
+                        justPrintCommands = true;
+                        break;
+                    case "-v":
+                    case "--verbose":
+                        Verbose = true;
+                        break;
+                }
+            }
+
+            if (Verbose) Console.WriteLine("Starting...");
+
             ApiKey = Environment.GetEnvironmentVariable("TELEGRAM_API_KEY");
 
-            Console.WriteLine("Got envvar TELEGRAM_API_KEY: " + ApiKey);
-
+            if (Verbose) Console.WriteLine("Got envvar TELEGRAM_API_KEY: " + ApiKey);
             if (string.IsNullOrWhiteSpace(ApiKey))
             {
                 Console.WriteLine("You are missing the TELEGRAM_API_KEY environment variable!");
@@ -42,7 +63,7 @@ namespace CoreDumpedTelegramBot
 
             string devs = Environment.GetEnvironmentVariable("TELEGRAM_DEVELOPERS");
 
-            Console.WriteLine("Got envvar TELEGRAM_DEVELOPERS: " + devs);
+            if (Verbose) Console.WriteLine("Got envvar TELEGRAM_DEVELOPERS: " + devs);
 
             if (!string.IsNullOrWhiteSpace(devs))
                 Developers = devs.Split(',').Select(int.Parse).ToArray();
@@ -54,14 +75,14 @@ namespace CoreDumpedTelegramBot
                 eventArgs.Cancel = true;
             };
 
-            Console.WriteLine("Initializing...");
+            if (Verbose) Console.WriteLine("Initializing...");
 
             Client = new TelegramBotClient(ApiKey);
             _plugins = new List<IBotPlugin>();
             _cmdHandler = new CommandHandler();
             CallbackHandler = new CallbackHandler();
 
-            Console.WriteLine("Looking for plugins...");
+            if (Verbose) Console.WriteLine("Looking for plugins...");
 
             Assembly ass = Assembly.GetEntryAssembly();
 
@@ -69,27 +90,40 @@ namespace CoreDumpedTelegramBot
                 if (ti.ImplementedInterfaces.Contains(typeof(IBotPlugin)))
                     _plugins.Add(ass.CreateInstance(ti.FullName) as IBotPlugin);
 
-            Console.WriteLine("Starting command handler...");
+            if (Verbose) Console.WriteLine("Starting command handler...");
 
             _cmdHandler = new CommandHandler();
             _cmdHandler.Initialize(_plugins);
 
+            if (justPrintCommands)
+            {
+                foreach (var command in _cmdHandler.Commands)
+                    Console.WriteLine(command.ToSyntaxString());
+
+                return;
+            }
+
             Client.OnMessage += ClientOnOnMessage;
             Client.OnCallbackQuery += ClientOnOnCallbackQuery;
+            BotPersona = await Client.GetMeAsync();
 
-            Console.WriteLine("Hooking plugins...");
+            if (Verbose)
+                Console.WriteLine("BotUsername: " + BotPersona.Username + " FirstName: " + BotPersona.FirstName +
+                                  " LastName: " + BotPersona.LastName + " ID: " + BotPersona.Id);
+
+            if (Verbose) Console.WriteLine("Hooking plugins...");
 
             _plugins.ForEach(TryWithException<IBotPlugin>(p => p.Hook(Client)));
 
-            Console.WriteLine("Starting receiving...");
+            if (Verbose) Console.WriteLine("Starting receiving...");
 
             Client.StartReceiving();
 
-            Console.WriteLine("Starting plugins...");
+            if (Verbose) Console.WriteLine("Starting plugins...");
 
             _plugins.ForEach(TryWithException<IBotPlugin>(p => p.Start()));
 
-            Console.WriteLine("Starting main loop...");
+            if (Verbose) Console.WriteLine("Starting main loop...");
 
             while (!_stop)
             {
@@ -99,7 +133,7 @@ namespace CoreDumpedTelegramBot
 
             _plugins.ForEach(TryWithException<IBotPlugin>(p => p.Stop()));
 
-            Console.WriteLine("Exiting...");
+            if (Verbose) Console.WriteLine("Exiting...");
 
             Client.StopReceiving();
         }
