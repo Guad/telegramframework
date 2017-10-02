@@ -52,7 +52,7 @@ namespace CoreDumpedTelegramBot.Features
 
             var markup = new ReplyKeyboardMarkup(buttons.Select(b => new KeyboardButton[1] { b  }).ToArray());
 
-            musicMessage = await Program.Client.SendTextMessageAsync(msg.Chat, string.Format("Search results for *{0}*:", searchQuery),
+            musicMessage = await Program.Client.SendTextMessageAsync(msg.Chat, string.Format("Buscando resultados: *{0}*:", searchQuery),
                 ParseMode.Markdown, replyToMessageId: msg.MessageId, replyMarkup: markup);
         }
 
