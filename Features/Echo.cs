@@ -13,7 +13,7 @@ namespace CoreDumpedTelegramBot.Features
         [Command("echo", GreedyArg = true)]
         public async void BotOnOnMessage(Message msg, string text)
         {
-            Program.ConsoleLog(string.Format("Received message: {0} from user {1}", text, msg.From.Id));
+            Program.ConsoleLog(string.Format("Mensaje recibido: {0} del usuario: {1}", text, msg.From.Id));
             
             await Program.Client.SendTextMessageAsync(msg.Chat, text, ParseMode.Markdown,
                 replyToMessageId: msg.MessageId);
