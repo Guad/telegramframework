@@ -61,7 +61,7 @@ namespace CoreDumpedTelegramBot.Features
             votingMessage = null;
             isChatGoingOn = false;
 
-            await Program.Client.SendTextMessageAsync(msg.Chat, "Vamos a empezar un nuevo voto. Indica la pregunta.");
+            await Program.Client.SendTextMessageAsync(msg.Chat, "Vamos a empezar una nueva votación. Indica la pregunta.");
             isSettingupChat = true;
         }
 
@@ -72,7 +72,7 @@ namespace CoreDumpedTelegramBot.Features
                 return;
 
             options.Add(text);
-            await Program.Client.SendTextMessageAsync(msg.Chat, "Añadido como opcion " + (options.Count - 1) + ". Quitar preguntas con /remq");
+            await Program.Client.SendTextMessageAsync(msg.Chat,(options.Count - 1) + ". Ha sido añadido como opción." + "Quitar preguntas con /remq");
         }
 
         [Command(GreedyArg = true, Description = "Poner la pregunta")]
@@ -81,7 +81,7 @@ namespace CoreDumpedTelegramBot.Features
             if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat)
                 return;
 
-            await Program.Client.SendTextMessageAsync(msg.Chat, "Ahora añade respuestas con /addq");
+            await Program.Client.SendTextMessageAsync(msg.Chat, "Ahora añade opciones con /addq");
             votingQuestion = question;
         }
 
@@ -92,7 +92,7 @@ namespace CoreDumpedTelegramBot.Features
                 return;
 
             options.RemoveAt(index);
-            await Program.Client.SendTextMessageAsync(msg.Chat, "Quitada opcion #" + index + "");
+            await Program.Client.SendTextMessageAsync(msg.Chat, "La opción #" + index + "ha sido quitada.");
         }
 
         [Command(Description = "Iniciar el voto")]
@@ -113,13 +113,13 @@ namespace CoreDumpedTelegramBot.Features
                     {
                         if (voters.Contains(q.From.Id))
                         {
-                            await Program.Client.AnswerCallbackQueryAsync(q.Id, "You have already voted!", true);
+                            await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Ya has votado antes!", true);
                         }
                         else
                         {
                             votes[i1]++;
                             voters.Add(q.From.Id);
-                            await Program.Client.AnswerCallbackQueryAsync(q.Id, "Vote successful!", false);
+                            await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Has votado satisfactoriamente!", false);
                             UpdateVotingMessage();
                         }
 

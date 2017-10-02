@@ -94,7 +94,7 @@ namespace CoreDumpedTelegramBot
                 catch (Exception e)
                 {
                     //Program.HandleException(e);
-                    await Program.Client.SendTextMessageAsync(msg.Chat, "Wrong type for parameter " + Parameters[i].Name + ". Expecting " + Parameters[i].ParameterType , replyToMessageId: msg.MessageId);
+                    await Program.Client.SendTextMessageAsync(msg.Chat, "Has excedido la  " + Parameters[i].Name + " máxima." + "Esperaba algo más razonable... " + "(" + Parameters[i].ParameterType + ")" , replyToMessageId: msg.MessageId);
                     return true;
                 }
             }
