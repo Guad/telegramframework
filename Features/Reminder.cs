@@ -36,12 +36,12 @@ namespace CoreDumpedTelegramBot.Features
                         Program.CallbackHandler.AddCallback(reminder.ButtonCallback, async q =>
                         {
                             if (reminder.Users.Contains(q.From.Id))
-                                await Program.Client.AnswerCallbackQueryAsync(q.Id, "Ya vas a ser recordado!");
+                                await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Ya vas a ser recordado!");
                             else
                             {
                                 reminder.Users.Add(q.From.Id);
 
-                                await Program.Client.AnswerCallbackQueryAsync(q.Id, "Te lo recordaré!");
+                                await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Te lo recordaré!");
                             }
 
                             return false;
@@ -86,15 +86,15 @@ namespace CoreDumpedTelegramBot.Features
 
             foreach (int userId in remind.Users)
             {
-                string msg = string.Format("Oye! Me dijiste que te recordara esto hace {0}:\n*{1}*", remind.RawTimeframe, remind.Text);
+                string msg = string.Format("¡Oye! Me dijiste que te recordara esto hace {0}:\n*{1}*", remind.RawTimeframe, remind.Text);
                 await Program.Client.SendTextMessageAsync(userId, msg, ParseMode.Markdown);
             }
         }
 
         [Command(GreedyArg = true, Description = "Crear un recordatorio")]
-        public async void remindme(Message msg, int amount, string timetype, string message)
+        public async void remindme(Message msg, int cantidad, string timetype, string message)
         {
-            if (amount <= 0)
+            if (cantidad <= 0)
                 return;
 
             // Remove accents
@@ -106,7 +106,7 @@ namespace CoreDumpedTelegramBot.Features
             RemindTimer newTimer = new RemindTimer();
             newTimer.Users = new List<int>();
             newTimer.Users.Add(msg.From.Id);
-            newTimer.RawTimeframe = string.Format("{0} {1}", amount, timetype);
+            newTimer.RawTimeframe = string.Format("{0} {1}", cantidad, timetype);
             newTimer.Text = message;
             
             object frame;
@@ -115,7 +115,7 @@ namespace CoreDumpedTelegramBot.Features
 
             TimeFrame tframe = (TimeFrame) frame;
 
-            TimeSpan span = GetTimeSpan(amount, tframe);
+            TimeSpan span = GetTimeSpan(cantidad, tframe);
             newTimer.Trigger = DateTime.UtcNow.Add(span);
 
             if (msg.Chat.Type != ChatType.Private)
@@ -129,12 +129,12 @@ namespace CoreDumpedTelegramBot.Features
                         callback = Program.CallbackHandler.AddCallback(async q =>
                         {
                             if (newTimer.Users.Contains(q.From.Id))
-                                await Program.Client.AnswerCallbackQueryAsync(q.Id, "Ya vas a ser recordado!");
+                                await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Ya vas a ser recordado!");
                             else
                             {
                                 newTimer.Users.Add(q.From.Id);
 
-                                await Program.Client.AnswerCallbackQueryAsync(q.Id, "Te lo recordaré!");
+                                await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Te lo recordaré!");
                             }
 
                             return false;
