@@ -12,11 +12,11 @@ namespace CoreDumpedTelegramBot.Features
 {
     public class TlDr : IBotPlugin
     {
-        private List<Message> _messageBuffer = new List<Message>();
+        private Dictionary<long, List<Message>> _messageBuffer = new Dictionary<long, List<Message>>();
+        private Dictionary<long, DateTime> _lastMessages = new Dictionary<long, DateTime>();
         private const int BufferSize = 10;
 
         private static string ApiKey;
-        private DateTime _lastMessage = DateTime.Now;
 
         public void Hook(TelegramBotClient bot)
         {
@@ -32,17 +32,34 @@ namespace CoreDumpedTelegramBot.Features
 
             lock (_messageBuffer)
             {
-                _messageBuffer.Add(msg);
-                if (_messageBuffer.Count > BufferSize)
-                    _messageBuffer.RemoveAt(0);
+                List<Message> msgs;
+                if (!_messageBuffer.ContainsKey(msg.Chat.Id))
+                {
+                    msgs = new List<Message>();
+                    _messageBuffer.Add(msg.Chat.Id, msgs);
+                }
+                else msgs = _messageBuffer[msg.Chat.Id];
+
+                msgs.Add(msg);
+                if (msgs.Count > BufferSize)
+                    msgs.RemoveAt(0);
             }
         }
 
         [Command(Description = "Leer un resumen del ultimo link enviado", Alias = "resumen")]
         public async void tldr(Message msg, int enunciados = 5)
-        {
-            if (DateTime.Now.Subtract(_lastMessage).TotalSeconds < 10)
-                return; // Prevent spam
+        {            
+            lock (_lastMessages)
+            {
+                if (_lastMessages.ContainsKey(msg.Chat.Id))
+                {
+                    if (DateTime.Now.Subtract(_lastMessages[msg.Chat.Id]).TotalSeconds < 10)
+                        return;
+                    else _lastMessages[msg.Chat.Id] = DateTime.Now;
+                }
+                else
+                    _lastMessages.Add(msg.Chat.Id, DateTime.Now);
+            }
 
             if (enunciados < 0)
                 return;
@@ -52,15 +69,19 @@ namespace CoreDumpedTelegramBot.Features
             string uri = null;
             Message quoted = null;
 
+            List<Message> buff = new List<Message>();
+            if (_messageBuffer.ContainsKey(msg.Chat.Id))
+                buff = _messageBuffer[msg.Chat.Id];
+
             lock (_messageBuffer)
                 for (int i = _messageBuffer.Count - 1; i >= 0; i--)
                 {
-                    Match match = Regex.Match(_messageBuffer[i].Text,
+                    Match match = Regex.Match(buff[i].Text,
                         @"(http|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?");
                     if (match.Success)
                     {
                         uri = match.Captures[0].Value;
-                        quoted = _messageBuffer[i];
+                        quoted = buff[i];
                         break;
                     }
                 }
