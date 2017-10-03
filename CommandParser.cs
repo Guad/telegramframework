@@ -91,10 +91,19 @@ namespace CoreDumpedTelegramBot
                 {
                     arguments[i] = Convert.ChangeType(args[i], Parameters[i].ParameterType, CultureInfo.InvariantCulture);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    //Program.HandleException(e);
-                    await Program.Client.SendTextMessageAsync(msg.Chat, "Has excedido la  " + Parameters[i].Name + " máxima." + "Esperaba algo más razonable... " + "(" + Parameters[i].ParameterType + ")" , replyToMessageId: msg.MessageId);
+                    string typeName = Parameters[i].ParameterType.ToString();
+                    int dot;
+                    if ((dot = typeName.LastIndexOf('.')) != -1)
+                        typeName = typeName.Substring(dot + 1);
+
+                    await Program.Client.SendTextMessageAsync(msg.Chat,
+                        "Tipo de dato incorrecto para parametro \"" +
+                        Parameters[i].Name +
+                        "\". Se esperaba " + 
+                        typeName
+                        , replyToMessageId: msg.MessageId);
                     return true;
                 }
             }

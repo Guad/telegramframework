@@ -87,7 +87,8 @@ namespace CoreDumpedTelegramBot
             Assembly ass = Assembly.GetEntryAssembly();
 
             foreach (TypeInfo ti in ass.DefinedTypes)
-                if (ti.ImplementedInterfaces.Contains(typeof(IBotPlugin)))
+                if (ti.ImplementedInterfaces.Contains(typeof(IBotPlugin)) &&
+                    ti.GetCustomAttribute<IgnoreImplementationAttribute>() == null)
                     _plugins.Add(ass.CreateInstance(ti.FullName) as IBotPlugin);
 
             if (Verbose) Console.WriteLine("Starting command handler...");
