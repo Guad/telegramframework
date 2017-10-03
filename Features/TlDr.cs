@@ -12,9 +12,14 @@ namespace CoreDumpedTelegramBot.Features
 {
     public class TlDr : IBotPlugin
     {
-        private Dictionary<long, List<Message>> _messageBuffer = new Dictionary<long, List<Message>>();
-        private Dictionary<long, DateTime> _lastMessages = new Dictionary<long, DateTime>();
+        class ChatInfo
+        {
+            public List<Message> MessageBuffer = new List<Message>();
+            public DateTime LastMessage;
+        }
+
         private const int BufferSize = 10;
+        private ChatData<ChatInfo> Data = new ChatData<ChatInfo>();
 
         private static string ApiKey;
 
@@ -30,36 +35,21 @@ namespace CoreDumpedTelegramBot.Features
             if (msg == null || msg.Type != MessageType.TextMessage)
                 return;
 
-            lock (_messageBuffer)
+            var inst = Data[msg.Chat];
+            lock (inst.MessageBuffer)
             {
-                List<Message> msgs;
-                if (!_messageBuffer.ContainsKey(msg.Chat.Id))
-                {
-                    msgs = new List<Message>();
-                    _messageBuffer.Add(msg.Chat.Id, msgs);
-                }
-                else msgs = _messageBuffer[msg.Chat.Id];
-
-                msgs.Add(msg);
-                if (msgs.Count > BufferSize)
-                    msgs.RemoveAt(0);
+                inst.MessageBuffer.Add(msg);
+                if (inst.MessageBuffer.Count > BufferSize)
+                    inst.MessageBuffer.RemoveAt(0);
             }
         }
 
         [Command(Description = "Leer un resumen del ultimo link enviado", Alias = "resumen")]
         public async void tldr(Message msg, int enunciados = 5)
         {            
-            lock (_lastMessages)
-            {
-                if (_lastMessages.ContainsKey(msg.Chat.Id))
-                {
-                    if (DateTime.Now.Subtract(_lastMessages[msg.Chat.Id]).TotalSeconds < 10)
-                        return;
-                    else _lastMessages[msg.Chat.Id] = DateTime.Now;
-                }
-                else
-                    _lastMessages.Add(msg.Chat.Id, DateTime.Now);
-            }
+            var inst = Data[msg.Chat];
+            if (DateTime.Now.Subtract(inst.LastMessage).TotalSeconds < 10)
+                return;
 
             if (enunciados < 0)
                 return;
@@ -69,25 +59,23 @@ namespace CoreDumpedTelegramBot.Features
             string uri = null;
             Message quoted = null;
 
-            List<Message> buff = new List<Message>();
-            if (_messageBuffer.ContainsKey(msg.Chat.Id))
-                buff = _messageBuffer[msg.Chat.Id];
-
-            lock (_messageBuffer)
-                for (int i = _messageBuffer.Count - 1; i >= 0; i--)
+            lock (inst.MessageBuffer)
+                for (int i = inst.MessageBuffer.Count - 1; i >= 0; i--)
                 {
-                    Match match = Regex.Match(buff[i].Text,
+                    Match match = Regex.Match(inst.MessageBuffer[i].Text,
                         @"(http|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?");
                     if (match.Success)
                     {
                         uri = match.Captures[0].Value;
-                        quoted = buff[i];
+                        quoted = inst.MessageBuffer[i];
                         break;
                     }
                 }
 
             if (string.IsNullOrWhiteSpace(uri))
                 return;
+
+            inst.LastMessage = DateTime.Now;
 
             var summary = await GetSummary(uri, enunciados);
 
