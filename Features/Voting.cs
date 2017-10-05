@@ -13,29 +13,44 @@ namespace CoreDumpedTelegramBot.Features
 {
     public class Voting : IBotPlugin
     {
-        public void Hook(TelegramBotClient bot)
+        private ChatData<VotingData> Data = new ChatData<VotingData>();
+
+        private class VotingData
         {
-            
+            public bool IsVoteActive;
+            public User BeingSetUpBy;
+            public Message VotingMessage;
+            public string VotingQuestion;
+            public DateTime? Limit;
+            public int[] Votes;
+            public string[] Callbacks;
+            public IReplyMarkup MainReplyMarkup;
+            public List<int> Voters = new List<int>();
+            public List<string> Options = new List<string>();
         }
+
 
         public void Update() {}
         public void Start() {}
         public void Stop() {}
+        public void Hook(TelegramBotClient bot)
+        {
+            bot.OnMessage += BotOnOnMessage;
+        }
 
-        private bool isSettingupChat;
-        private bool isChatGoingOn;
-        private Message votingMessage;
-        private string votingQuestion;
+        private void BotOnOnMessage(object sender, MessageEventArgs messageEventArgs)
+        {
+            var msg = messageEventArgs.Message;
+            if (msg == null) return;
+            VotingData ourData = Data[msg.Chat];
+            if (ourData.BeingSetUpBy?.Id != msg.From.Id) return;
 
-        private List<int> voters = new List<int>();
-        private List<string> options = new List<string>();
-        private string[] callbacks;
-        private int[] votes;
-        private IReplyMarkup mainReplyMarkup;
+
+        }
 
         private async Task<bool> canDoVotes(Chat chat, int user)
         {
-            if (chat.Id == user)
+            if (chat.Id == user || chat.AllMembersAreAdministrators)
                 return true;
             ChatMember[] admins = await Program.Client.GetChatAdministratorsAsync(chat);
 
@@ -48,103 +63,102 @@ namespace CoreDumpedTelegramBot.Features
             if (!await canDoVotes(msg.Chat, msg.From.Id))
                 return;
 
-            if (isChatGoingOn)
+            VotingData ourData = Data[msg.Chat];
+
+            if (ourData.IsVoteActive)
             {
-                await Program.Client.EditMessageReplyMarkupAsync(votingMessage.Chat, votingMessage.MessageId, null);
-                callbacks.ToList().ForEach(s => Program.CallbackHandler.RemoveCallback(s));
-                callbacks = null;
+                await Program.Client.EditMessageReplyMarkupAsync(ourData.VotingMessage.Chat, ourData.VotingMessage.MessageId, null);
+                ourData.Callbacks.ToList().ForEach(s => Program.CallbackHandler.RemoveCallback(s));
             }
 
-            votes = null;
-            voters.Clear();
-            options.Clear();
-            votingMessage = null;
-            isChatGoingOn = false;
+            ourData = Data[msg.Chat] = new VotingData();
+            ourData.BeingSetUpBy = msg.From;
 
-            await Program.Client.SendTextMessageAsync(msg.Chat, "Vamos a empezar una nueva votación. Indica la pregunta.");
-            isSettingupChat = true;
+            await Program.Client.SendTextMessageAsync(msg.Chat, "Vamos a empezar una nueva votación. Indica la pregunta con /setq.");
         }
 
         [Command(GreedyArg = true, Description = "Añadir una respuesta")]
         public async void addq(Message msg, string text)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat)
+            if (!await canDoVotes(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
                 return;
 
-            options.Add(text);
-            await Program.Client.SendTextMessageAsync(msg.Chat,(options.Count - 1) + ". Ha sido añadido como opción." + "Quitar preguntas con /remq");
+            Data[msg.Chat].Options.Add(text);
+            await Program.Client.SendTextMessageAsync(msg.Chat,(Data[msg.Chat].Options.Count - 1) + ". Ha sido añadido como opción." + "Quitar preguntas con /remq");
         }
 
         [Command(GreedyArg = true, Description = "Poner la pregunta")]
         public async void setq(Message msg, string question)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat)
+            if (!await canDoVotes(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
                 return;
 
             await Program.Client.SendTextMessageAsync(msg.Chat, "Ahora añade opciones con /addq");
-            votingQuestion = question;
+            Data[msg.Chat].VotingQuestion = question;
         }
 
         [Command(Description = "Quitar una respuesta")]
         public async void remq(Message msg, int index)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat || index < 0 || index >= options.Count)
+            if (!await canDoVotes(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id || index < 0 || index >= Data[msg.Chat].Options.Count)
                 return;
 
-            options.RemoveAt(index);
+            Data[msg.Chat].Options.RemoveAt(index);
             await Program.Client.SendTextMessageAsync(msg.Chat, "La opción #" + index + "ha sido quitada.");
         }
 
         [Command(Description = "Iniciar el voto")]
         public async void startvote(Message msg)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id) || !isSettingupChat)
+            if (!await canDoVotes(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
                 return;
 
-            List<InlineKeyboardCallbackButton> buttens = new List<InlineKeyboardCallbackButton>();
-            callbacks = new string[options.Count];
-            votes = new int[options.Count];
+            var ourData = Data[msg.Chat];
 
-            for (int i = 0; i < options.Count; i++)
+            List<InlineKeyboardCallbackButton> buttens = new List<InlineKeyboardCallbackButton>();
+            ourData.Callbacks = new string[ourData.Options.Count];
+            ourData.Votes = new int[ourData.Options.Count];
+
+            for (int i = 0; i < ourData.Options.Count; i++)
             {
                 var i1 = i;
-                buttens.Add(new InlineKeyboardCallbackButton(options[i] + " [0]",
-                    callbacks[i] = Program.CallbackHandler.AddCallback(async q =>
+                buttens.Add(new InlineKeyboardCallbackButton(ourData.Options[i] + " [0]",
+                    ourData.Callbacks[i] = Program.CallbackHandler.AddCallback(async q =>
                     {
-                        if (voters.Contains(q.From.Id))
+                        if (ourData.Voters.Contains(q.From.Id))
                         {
                             await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Ya has votado antes!", true);
                         }
                         else
                         {
-                            votes[i1]++;
-                            voters.Add(q.From.Id);
+                            ourData.Votes[i1]++;
+                            ourData.Voters.Add(q.From.Id);
                             await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Has votado satisfactoriamente!", false);
-                            UpdateVotingMessage();
+                            UpdateVotingMessage(ourData);
                         }
 
                         return false;
                     })));
             }
 
-            mainReplyMarkup = new InlineKeyboardMarkup(buttens.Select(b => new InlineKeyboardButton[1] { b }).ToArray());
+            ourData.MainReplyMarkup = new InlineKeyboardMarkup(buttens.Select(b => new InlineKeyboardButton[1] { b }).ToArray());
 
-            string text = string.Format("*VOTE*\n{0}", votingQuestion);
-            votingMessage = await Program.Client.SendTextMessageAsync(msg.Chat, text,
-                ParseMode.Markdown, replyMarkup: mainReplyMarkup);
-            isSettingupChat = false;
+            string text = string.Format("*VOTE*\n{0}", ourData.VotingQuestion);
+            ourData.VotingMessage = await Program.Client.SendTextMessageAsync(msg.Chat, text,
+                ParseMode.Markdown, replyMarkup: ourData.MainReplyMarkup);
+            ourData.BeingSetUpBy = null;
         }
 
-        private void UpdateVotingMessage()
+        private void UpdateVotingMessage(VotingData data)
         {
-            var replyMarkup = (InlineKeyboardMarkup) mainReplyMarkup;
+            var replyMarkup = (InlineKeyboardMarkup) data.MainReplyMarkup;
             for (int i = 0; i < replyMarkup.InlineKeyboard.Length; i++)
             {
-                replyMarkup.InlineKeyboard[i][0].Text = string.Format("{0} [{1}]", options[i], votes[i]);
+                replyMarkup.InlineKeyboard[i][0].Text = string.Format("{0} [{1}]", data.Options[i], data.Votes[i]);
             }
 
-            string text = string.Format("*VOTE*: {0}", votingQuestion);
-            Program.Client.EditMessageTextAsync(votingMessage.Chat, votingMessage.MessageId, text, ParseMode.Markdown, replyMarkup: replyMarkup);
+            string text = string.Format("*VOTE*\n{0}", data.VotingQuestion);
+            Program.Client.EditMessageTextAsync(data.VotingMessage.Chat, data.VotingMessage.MessageId, text, ParseMode.Markdown, replyMarkup: replyMarkup);
         }
     }
 }

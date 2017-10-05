@@ -17,20 +17,31 @@ namespace CoreDumpedTelegramBot
         {
             get 
             {
-                if (_dict.ContainsKey(chatId))
-                    return _dict[chatId];
-                T output;
-                _dict.Add(chatId, output = (T)Activator.CreateInstance(typeof(T)));
-                return output;
-            }            
+                lock (_dict)
+                {
+                    if (_dict.ContainsKey(chatId))
+                        return _dict[chatId];
+                    T output;
+                    lock (_dict)
+                        _dict.Add(chatId, output = (T) Activator.CreateInstance(typeof(T)));
+                    return output;
+                }
+            }
+            set
+            {
+                lock (_dict)
+                {
+                    if (_dict.ContainsKey(chatId))
+                        _dict[chatId] = value;
+                    else _dict.Add(chatId, value);
+                }
+            }
         }
 
         public T this[Chat chat]
         {
-            get
-            {
-                return this[chat.Id];
-            }
+            get => this[chat.Id];
+            set => this[chat.Id] = value;
         }
     }
 }
