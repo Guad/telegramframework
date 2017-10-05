@@ -24,7 +24,7 @@ namespace CoreDumpedTelegramBot.Features
 
                 using (Stream fileStream = await wc.GetStreamAsync(imguri))
                 {
-                    await Program.Client.SendPhotoAsync(msg.Chat, fileStream.ToTelegramFile("bing.png"), copyright);
+                    await Program.Client.SendPhotoAsync(msg.Chat, fileStream.ToFileToSend("bing.png"), copyright);
                 }
             }
         }

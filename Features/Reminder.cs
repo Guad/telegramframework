@@ -144,7 +144,7 @@ namespace CoreDumpedTelegramBot.Features
                 newTimer.ButtonCallback = callback;
             }
 
-            Message origMsg = await Program.Client.SendTextMessageAsync(msg.Chat, string.Format(msgText, newTimer.Trigger.ToString("R"), message), ParseMode.Markdown,
+            Message origMsg = await Program.Client.SendTextMessageAsync(msg.Chat, string.Format(msgText, newTimer.Trigger.ToMadridTime().ToHumanString(), message), ParseMode.Markdown,
                 replyToMessageId: msg.MessageId, replyMarkup: markup);
 
             newTimer.OriginalChatId = origMsg.Chat.Id;
