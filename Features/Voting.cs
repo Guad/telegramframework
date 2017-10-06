@@ -48,7 +48,7 @@ namespace CoreDumpedTelegramBot.Features
 
         }
 
-        private async Task<bool> canDoVotes(Chat chat, int user)
+        public static async Task<bool> IsAdministrator(Chat chat, int user)
         {
             if (chat.Id == user || chat.AllMembersAreAdministrators)
                 return true;
@@ -56,11 +56,20 @@ namespace CoreDumpedTelegramBot.Features
 
             return admins.Any(a => a.User.Id == user);
         }
-        
+
+        public static async Task<bool> IsGroupAdministrator(Chat chat, int user)
+        {
+            if (chat.AllMembersAreAdministrators)
+                return true;
+            ChatMember[] admins = await Program.Client.GetChatAdministratorsAsync(chat);
+
+            return admins.Any(a => a.User.Id == user);
+        }
+
         [Command(Description = "Crear un voto nuevo")]
         public async void newvote(Message msg)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id))
+            if (!await IsAdministrator(msg.Chat, msg.From.Id))
                 return;
 
             VotingData ourData = Data[msg.Chat];
@@ -80,7 +89,7 @@ namespace CoreDumpedTelegramBot.Features
         [Command(GreedyArg = true, Description = "Añadir una respuesta")]
         public async void addq(Message msg, string text)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
+            if (!await IsAdministrator(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
                 return;
 
             Data[msg.Chat].Options.Add(text);
@@ -90,7 +99,7 @@ namespace CoreDumpedTelegramBot.Features
         [Command(GreedyArg = true, Description = "Poner la pregunta")]
         public async void setq(Message msg, string question)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
+            if (!await IsAdministrator(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
                 return;
 
             await Program.Client.SendTextMessageAsync(msg.Chat, "Ahora añade opciones con /addq");
@@ -100,7 +109,7 @@ namespace CoreDumpedTelegramBot.Features
         [Command(Description = "Quitar una respuesta")]
         public async void remq(Message msg, int index)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id || index < 0 || index >= Data[msg.Chat].Options.Count)
+            if (!await IsAdministrator(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id || index < 0 || index >= Data[msg.Chat].Options.Count)
                 return;
 
             Data[msg.Chat].Options.RemoveAt(index);
@@ -110,7 +119,7 @@ namespace CoreDumpedTelegramBot.Features
         [Command(Description = "Iniciar el voto")]
         public async void startvote(Message msg)
         {
-            if (!await canDoVotes(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
+            if (!await IsAdministrator(msg.Chat, msg.From.Id) || Data[msg.Chat].BeingSetUpBy?.Id != msg.From.Id)
                 return;
 
             var ourData = Data[msg.Chat];

@@ -23,6 +23,12 @@ namespace CoreDumpedTelegramBot
             Remove(c.Id);
         }
 
+        public Dictionary<long, T>.KeyCollection Keys()
+        {
+            lock (_dict)
+                return new Dictionary<long, T>.KeyCollection(_dict);
+        }
+
         public T this[long chatId]
         {
             get 

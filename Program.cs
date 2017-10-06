@@ -129,7 +129,7 @@ namespace CoreDumpedTelegramBot
             while (!_stop)
             {
                 _plugins.ForEach(TryWithException<IBotPlugin>(p => p.Update()));
-                await Task.Delay(500);
+                await Task.Delay(1000);
             }
 
             _plugins.ForEach(TryWithException<IBotPlugin>(p => p.Stop()));
