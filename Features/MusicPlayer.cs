@@ -1,4 +1,4 @@
-﻿//#define IS_PLEER_BACK_UP
+﻿#define IS_PLEER_BACK_UP
 
 using System;
 using System.Collections;
@@ -6,10 +6,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
+using HtmlAgilityPack;
 using Telegram.Bot;
+using Telegram.Bot.Args;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineKeyboardButtons;
@@ -19,7 +22,35 @@ namespace CoreDumpedTelegramBot.Features
 {
     public class MusicPlayer : IBotPlugin
     {
-        public void Hook(TelegramBotClient bot){}
+        private class RequestData
+        {
+            public User Requestee;
+            public Message MusicMessage;
+            public List<Song> Songs;
+        }
+
+        private ChatData<RequestData> Data = new ChatData<RequestData>();
+
+        public void Hook(TelegramBotClient bot)
+        {
+            bot.OnMessage += BotOnOnMessage;
+        }
+
+        private async void BotOnOnMessage(object sender, MessageEventArgs messageEventArgs)
+        {
+            var ourData = Data[messageEventArgs.Message.Chat];
+
+            if (ourData.Requestee != null)
+            {
+                if (ourData.Requestee.Id != messageEventArgs.Message.From.Id) return;
+                await Program.Client.DeleteMessageAsync(ourData.MusicMessage.Chat, ourData.MusicMessage.MessageId);
+                int indx = messageEventArgs.Message.Text[0] - '0';
+                if (indx >= 0 && indx < ourData.Songs.Count)
+                    await PostSong(ourData.MusicMessage.Chat, ourData.Songs[indx]);
+                Data.Remove(messageEventArgs.Message.Chat);
+            }
+        }
+
         public void Update(){}
         public void Start(){}
         public void Stop(){}
@@ -31,92 +62,91 @@ namespace CoreDumpedTelegramBot.Features
         {
             var songs = await SearchSong(searchQuery);
             Message musicMessage = null;
-            List<KeyboardButton> buttons = new List<KeyboardButton>();
-            string[] callbacks = new string[(int) Math.Min(3, songs.Count)];
+            if (songs == null) return;
+            var ourData = Data[msg.Chat];
+            ourData.Songs = songs;
+            ourData.Requestee = msg.From;
 
+            List<KeyboardButton> buttons = new List<KeyboardButton>();
+
+            string[] callbacks = new string[(int) Math.Min(10, songs.Count)];
+            
             for (int i = 0; i < callbacks.Length; i++)
             {
                 var i1 = i;
-                var butten = new InlineKeyboardCallbackButton(songs[i].Name + " - " + songs[i].Artist,
-                    callbacks[i] = Program.CallbackHandler.AddCallback(async cback =>
-                    {
-                        if (cback.From.Id != msg.From.Id) return false;
-                        Program.CallbackHandler.RemoveCallbacks(callbacks);
-                        await Program.Client.DeleteMessageAsync(msg.Chat, musicMessage.MessageId);
-
-                        await PostSong(msg.Chat, songs[i1]);
-                        return true;
-                    }));
+                var butten = new KeyboardButton(i + ". " + songs[i].Name + " - " + songs[i].Artist);
                 buttons.Add(butten);
             }
 
-            var markup = new ReplyKeyboardMarkup(buttons.Select(b => new KeyboardButton[1] { b  }).ToArray());
+            var markup = new ReplyKeyboardMarkup(buttons.Select(b => new KeyboardButton[1] { b }).ToArray(), oneTimeKeyboard: true);
 
-            musicMessage = await Program.Client.SendTextMessageAsync(msg.Chat, string.Format("Buscando resultados: *{0}*:", searchQuery),
+            ourData.MusicMessage = await Program.Client.SendTextMessageAsync(msg.Chat, string.Format("Buscando resultados para *{0}*", searchQuery),
                 ParseMode.Markdown, replyToMessageId: msg.MessageId, replyMarkup: markup);
         }
 
         private async Task PostSong(Chat c, Song s)
         {
-            using (var wc = new HttpClient())
-            using (var stream = await wc.GetStreamAsync(s.Link))
+            int tries = 0;
+            again:
+            try
             {
-                await Program.Client.SendAudioAsync(c,
-                    stream.ToFileToSend(string.Format("{0} - {1}.mp3", s.Name, s.Artist)),
-                    string.Format("Playing {0} by {1}", s.Name, s.Artist), 100, s.Artist, s.Name);
+                using (var wc = new HttpClient())
+                using (var stream = await wc.GetStreamAsync(s.Link))
+                {
+                    await Program.Client.SendAudioAsync(c,
+                        stream.ToFileToSend(string.Format("{0} - {1}.mp3", s.Name, s.Artist)),
+                        string.Format("Playing {0} by {1}", s.Name, s.Artist), 100, s.Artist, s.Name);
+                }
+            }
+            catch (HttpRequestException)
+            {
+                if (tries++ > 3) return;
+                await Task.Delay(2000);
+                goto again;
             }
         }
 
         private async Task<List<Song>> SearchSong(string query)
         {
-            string uri = @"http://pleer.net/search?q=" + HttpUtility.UrlEncode(query);
+            int tries = 0;
 
+            again:
+            UriBuilder uriBuilder = new UriBuilder("http://mp3with.co/search");
+            var parser = HttpUtility.ParseQueryString(string.Empty);
+            parser["q"] = query;
+            uriBuilder.Query = parser.ToString();
+            string rawHtml;
+            using (WebClient client = new WebClient())
+            {
+                client.Encoding = Encoding.UTF8;
+                try
+                {
+                    rawHtml = await client.DownloadStringTaskAsync(uriBuilder.Uri);
+                }
+                catch (WebException)
+                {
+                    //return null;
+                    if (tries++ > 3)
+                        return null;
+                    await Task.Delay(2000);
+                    goto again;
+                }
+            }
             List<Song> songs = new List<Song>();
 
-            using (var wc = new HttpClient())
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(rawHtml);
+            //List<Song> output = new List<Song>();
+            foreach (HtmlNode node in doc.DocumentNode.SelectSingleNode("//ul[@class=\"songs\"]").SelectNodes("li"))
             {
-                var html = await wc.GetStringAsync(uri);
-                html = html.Replace("\n", " ");
-
-                var matches = Regex.Matches(html, "<li duration(.+?)>");
-
-                foreach (var match in matches)
+                songs.Add(new Song()
                 {
-                    string line = ((Match) match).Value;
-
-                    Song s = new Song();
-
-                    foreach (var pair in Regex.Matches(line, "\\s(.+?)=\"(.*?)\""))
-                    {
-                        var m = (Match) pair;
-                        if (string.IsNullOrWhiteSpace(m.Value)) continue;
-                        string value = m.Groups[2].Captures[0].ToString().Trim();
-                        switch (m.Groups[1].Captures[0].ToString().Trim())
-                        {
-                            case "link":
-                                string uri_json =
-                                    @"http://pleer.net/site_api/files/get_url?action=download&id=" +
-                                    value;
-                                var json = await wc.GetStringAsync(uri_json);
-
-                                var r = Regex.Match(json, "\"track_link\":\"(.+?)\"");
-                                s.Link = r.Groups[1].Captures[0].ToString();
-                                break;
-                            case "singer":
-                                s.Artist = HttpUtility.HtmlDecode(value);
-                                break;
-                            case "song":
-                                s.Name = HttpUtility.HtmlDecode(value);
-                                break;
-                            /*case "size":
-                                s.Source = source;
-                                break;*/
-                        }
-
-                    }
-
-                    songs.Add(s);
-                }
+                    Link = "http://mp3with.co" + node.Attributes["data-mp3"].Value,
+                    Name = node.ChildNodes[1].ChildNodes
+                        .First(n => n.Name == "strong" && !n.Attributes.Contains("class")).InnerHtml.Trim(),
+                    Artist = node.ChildNodes[1].ChildNodes.First(n => n.GetAttributeValue("class", "none") == "artist")
+                        .InnerHtml.Trim(),
+                });
             }
 
             return songs;

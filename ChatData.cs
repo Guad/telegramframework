@@ -13,6 +13,16 @@ namespace CoreDumpedTelegramBot
             _dict = new Dictionary<long, T>();
         }
 
+        public void Remove(long c)
+        {
+            lock (_dict) _dict.Remove(c);
+        }
+
+        public void Remove(Chat c)
+        {
+            Remove(c.Id);
+        }
+
         public T this[long chatId]
         {
             get 
