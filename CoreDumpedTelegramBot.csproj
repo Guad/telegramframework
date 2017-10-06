@@ -10,4 +10,10 @@
     <PackageReference Include="Telegram.Bot" Version="13.2.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="fortunes.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
