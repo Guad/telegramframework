@@ -95,7 +95,7 @@ namespace CoreDumpedTelegramBot.Features
                 {
                     await Program.Client.SendAudioAsync(c,
                         stream.ToFileToSend(string.Format("{0} - {1}.mp3", s.Name, s.Artist)),
-                        string.Format("Playing {0} by {1}", s.Name, s.Artist), 100, s.Artist, s.Name);
+                        string.Format("Playing {0} by {1}", s.Name, s.Artist), 10, s.Artist, s.Name);
                 }
             }
             catch (HttpRequestException)
