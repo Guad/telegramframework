@@ -13,6 +13,11 @@ namespace CoreDumpedTelegramBot
             _dict = new Dictionary<long, T>();
         }
 
+        public ChatData(Dictionary<long, T> from)
+        {
+            _dict = from;
+        }
+
         public void Remove(long c)
         {
             lock (_dict) _dict.Remove(c);
@@ -58,6 +63,11 @@ namespace CoreDumpedTelegramBot
         {
             get => this[chat.Id];
             set => this[chat.Id] = value;
+        }
+
+        public static explicit operator Dictionary<long, T>(ChatData<T> d)
+        {
+            return d._dict;
         }
     }
 }

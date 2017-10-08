@@ -13,6 +13,7 @@ namespace CoreDumpedTelegramBot.Features
             public Message TimerMessage;
             public DateTime? Start;
             public object Lock = new object();
+            public long LastTicks;
         }
 
         private ChatData<ChatStopwatches> _data = new ChatData<ChatStopwatches>();
@@ -51,8 +52,13 @@ namespace CoreDumpedTelegramBot.Features
                 if (!ourData.Start.HasValue) continue;
                 
                 var span = DateTime.UtcNow.Subtract(ourData.Start.Value);
-                await Program.Client.EditMessageTextAsync(ourData.TimerMessage.Chat, ourData.TimerMessage.MessageId,
-                    string.Format("Timer:\n*{0}*", span), ParseMode.Markdown);
+                span = TimeSpan.FromSeconds((int)span.TotalSeconds);
+                if (ourData.LastTicks != span.Ticks)
+                {
+                    ourData.LastTicks = span.Ticks;
+                    await Program.Client.EditMessageTextAsync(ourData.TimerMessage.Chat, ourData.TimerMessage.MessageId,
+                        string.Format("Timer:\n*{0}*", span), ParseMode.Markdown);
+                }
             }
         }
 

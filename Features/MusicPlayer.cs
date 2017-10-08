@@ -136,8 +136,11 @@ namespace CoreDumpedTelegramBot.Features
 
             HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(rawHtml);
-            //List<Song> output = new List<Song>();
-            foreach (HtmlNode node in doc.DocumentNode.SelectSingleNode("//ul[@class=\"songs\"]").SelectNodes("li"))
+            var nodeList = doc.DocumentNode.SelectSingleNode("//ul[@class=\"songs\"]");
+
+            if (nodeList == null) return null;
+
+            foreach (HtmlNode node in nodeList.SelectNodes("li"))
             {
                 songs.Add(new Song()
                 {
