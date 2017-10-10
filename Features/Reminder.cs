@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using Newtonsoft.Json;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineKeyboardButtons;
@@ -17,6 +18,7 @@ namespace CoreDumpedTelegramBot.Features
     public class Reminder : IBotPlugin
     {
         private List<RemindTimer> _reminders = new List<RemindTimer>();
+        private List<int> _bannedUsers = new List<int>();
 
         public void Hook(TelegramBotClient bot){}
 
@@ -87,7 +89,20 @@ namespace CoreDumpedTelegramBot.Features
             foreach (int userId in remind.Users)
             {
                 string msg = string.Format("¡Oye! Me dijiste que te recordara esto hace {0}:\n*{1}*", remind.RawTimeframe, remind.Text);
-                await Program.Client.SendTextMessageAsync(userId, msg, ParseMode.Markdown);
+                try
+                {
+                    await Program.Client.SendTextMessageAsync(userId, msg, ParseMode.Markdown);
+                }
+                catch (ApiRequestException)
+                {
+                    // He didnt add me
+                    if (!_bannedUsers.Contains(userId))
+                        _bannedUsers.Add(userId);
+                    continue;
+                }
+
+                if (_bannedUsers.Contains(userId))
+                    _bannedUsers.Remove(userId);
             }
         }
 
@@ -130,6 +145,12 @@ namespace CoreDumpedTelegramBot.Features
                         {
                             if (newTimer.Users.Contains(q.From.Id))
                                 await Program.Client.AnswerCallbackQueryAsync(q.Id, "¡Ya vas a ser recordado!");
+                            else if (_bannedUsers.Contains(q.From.Id))
+                            {
+                                await Program.Client.AnswerCallbackQueryAsync(q.Id,
+                                    "Tienes que hablarme por privado al menos una vez para que te pueda recordar!",
+                                    true);
+                            }
                             else
                             {
                                 newTimer.Users.Add(q.From.Id);
