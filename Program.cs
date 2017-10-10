@@ -33,6 +33,7 @@ namespace CoreDumpedTelegramBot
         private static async Task MainAsync(string[] args)
         {
             bool justPrintCommands = false;
+            bool flush = false;
 
             /* PARSE ARGUMENTS */
             for (int i = 0; i < args.Length; i++)
@@ -46,6 +47,10 @@ namespace CoreDumpedTelegramBot
                     case "-v":
                     case "--verbose":
                         Verbose = true;
+                        break;
+                    case "-f":
+                    case "--flush":
+                        flush = true;
                         break;
                 }
             }
@@ -94,7 +99,7 @@ namespace CoreDumpedTelegramBot
             if (Verbose) Console.WriteLine("Starting command handler...");
 
             _cmdHandler = new CommandHandler();
-            _cmdHandler.Initialize(_plugins);
+            if (!flush) _cmdHandler.Initialize(_plugins);
 
             if (justPrintCommands)
             {
@@ -104,8 +109,8 @@ namespace CoreDumpedTelegramBot
                 return;
             }
 
-            Client.OnMessage += ClientOnOnMessage;
-            Client.OnCallbackQuery += ClientOnOnCallbackQuery;
+            if (!flush) Client.OnMessage += ClientOnOnMessage;
+            if (!flush) Client.OnCallbackQuery += ClientOnOnCallbackQuery;
             BotPersona = await Client.GetMeAsync();
 
             if (Verbose)
@@ -114,11 +119,17 @@ namespace CoreDumpedTelegramBot
 
             if (Verbose) Console.WriteLine("Hooking plugins...");
 
-            _plugins.ForEach(TryWithException<IBotPlugin>(p => p.Hook(Client)));
+            if (!flush) _plugins.ForEach(TryWithException<IBotPlugin>(p => p.Hook(Client)));
 
             if (Verbose) Console.WriteLine("Starting receiving...");
 
             Client.StartReceiving();
+
+            if (flush)
+            {
+                Client.StopReceiving();
+                return;
+            }
 
             if (Verbose) Console.WriteLine("Starting plugins...");
 
